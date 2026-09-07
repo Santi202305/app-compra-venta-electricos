@@ -1,0 +1,24 @@
+name: app_compra_venta_electricos
+description: >
+  App móvil de compra y venta de materiales eléctricos e industriales,
+  con catálogo, carrito, checkout y asistente virtual (bot de preguntas
+  frecuentes). Estructura inicial del proyecto — UCEVA, Electiva
+  Profesional I.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
