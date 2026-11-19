@@ -51,24 +51,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _fillSeedAdmin() {
-    setState(() {
-      _activeTab = 0;
-      _loginEmailController.text = 'admin@electroindustrial.com';
-      _loginPasswordController.text = 'Admin2026*';
-      _errorMessage = null;
-    });
-  }
-
-  void _fillSeedDemo() {
-    setState(() {
-      _activeTab = 0;
-      _loginEmailController.text = 'demo@electroindustrial.com';
-      _loginPasswordController.text = 'Demo2026*';
-      _errorMessage = null;
-    });
-  }
-
   Future<void> _handleLogin() async {
     final email = _loginEmailController.text.trim();
     final password = _loginPasswordController.text;
@@ -163,6 +145,51 @@ class _LoginScreenState extends State<LoginScreen> {
   void _continueAsGuest() {
     widget.app.logout();
     _goToHome();
+  }
+
+  // Estilo y decoración unificada para todos los campos de texto
+  InputDecoration _inputDecoration({
+    required String labelText,
+    required String hintText,
+    required Widget prefixIcon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      labelText: labelText,
+      hintText: hintText,
+      filled: true,
+      fillColor: const Color(0xFFF1F5F9), // Gris claro nítido para máximo contraste
+      labelStyle: const TextStyle(
+        color: Color(0xFF475569),
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      ),
+      floatingLabelStyle: const TextStyle(
+        color: Color(0xFF2563EB),
+        fontWeight: FontWeight.bold,
+      ),
+      hintStyle: const TextStyle(
+        color: Color(0xFF94A3B8),
+        fontSize: 13,
+      ),
+      prefixIcon: prefixIcon,
+      prefixIconColor: const Color(0xFF475569),
+      suffixIcon: suffixIcon,
+      suffixIconColor: const Color(0xFF475569),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFCBD5E1), width: 1.0),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFCBD5E1), width: 1.0),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.8),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
   }
 
   @override
@@ -284,7 +311,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
 
-                        // Formulario según pestaña
+                        // Formulario según pestaña activa
                         Padding(
                           padding: const EdgeInsets.all(24),
                           child: Column(
@@ -326,7 +353,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 const SizedBox(height: 16),
                               ],
 
-                              // Contenido de la pestaña activa
+                              // Contenido de la pestaña
                               if (_activeTab == 0)
                                 _buildLoginForm()
                               else
@@ -399,11 +426,16 @@ class _LoginScreenState extends State<LoginScreen> {
         TextField(
           controller: _loginEmailController,
           keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          cursorColor: const Color(0xFF2563EB),
+          decoration: _inputDecoration(
             labelText: 'Correo Electrónico',
             hintText: 'ejemplo@electroindustrial.com',
             prefixIcon: const Icon(Icons.email_outlined, size: 20),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         const SizedBox(height: 14),
@@ -413,8 +445,15 @@ class _LoginScreenState extends State<LoginScreen> {
           controller: _loginPasswordController,
           obscureText: _obscureLoginPassword,
           onSubmitted: (_) => _handleLogin(),
-          decoration: InputDecoration(
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          cursorColor: const Color(0xFF2563EB),
+          decoration: _inputDecoration(
             labelText: 'Contraseña',
+            hintText: 'Tu contraseña',
             prefixIcon: const Icon(Icons.lock_outline, size: 20),
             suffixIcon: IconButton(
               icon: Icon(
@@ -425,10 +464,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 setState(() => _obscureLoginPassword = !_obscureLoginPassword);
               },
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
 
         // Botón Iniciar Sesión
         ElevatedButton(
@@ -458,70 +496,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
         ),
-        const SizedBox(height: 20),
-
-        // Acceso rápido para desarrollo / pruebas
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.vpn_key_outlined, size: 16, color: Colors.grey.shade700),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Usuarios de prueba con JWT:',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.grey.shade800,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _fillSeedAdmin,
-                      icon: const Icon(Icons.admin_panel_settings, size: 16),
-                      label: const Text('Admin', style: TextStyle(fontSize: 12)),
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        foregroundColor: const Color(0xFFD97706),
-                        side: const BorderSide(color: Color(0xFFFCD34D)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _fillSeedDemo,
-                      icon: const Icon(Icons.person, size: 16),
-                      label: const Text('Cliente Demo', style: TextStyle(fontSize: 12)),
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        foregroundColor: const Color(0xFF2563EB),
-                        side: const BorderSide(color: Color(0xFF93C5FD)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 14),
+        const SizedBox(height: 18),
 
         // Switch a registro
         Center(
@@ -577,11 +552,16 @@ class _LoginScreenState extends State<LoginScreen> {
         TextField(
           controller: _registerNameController,
           textCapitalization: TextCapitalization.words,
-          decoration: InputDecoration(
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          cursorColor: const Color(0xFF2563EB),
+          decoration: _inputDecoration(
             labelText: 'Nombre Completo',
             hintText: 'Ej: Carlos Gómez',
             prefixIcon: const Icon(Icons.badge_outlined, size: 20),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         const SizedBox(height: 14),
@@ -590,11 +570,16 @@ class _LoginScreenState extends State<LoginScreen> {
         TextField(
           controller: _registerEmailController,
           keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          cursorColor: const Color(0xFF2563EB),
+          decoration: _inputDecoration(
             labelText: 'Correo Electrónico',
             hintText: 'carlos@empresa.com',
             prefixIcon: const Icon(Icons.email_outlined, size: 20),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         const SizedBox(height: 14),
@@ -603,8 +588,15 @@ class _LoginScreenState extends State<LoginScreen> {
         TextField(
           controller: _registerPasswordController,
           obscureText: _obscureRegisterPassword,
-          decoration: InputDecoration(
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          cursorColor: const Color(0xFF2563EB),
+          decoration: _inputDecoration(
             labelText: 'Contraseña (mínimo 6 caracteres)',
+            hintText: 'Crea tu contraseña',
             prefixIcon: const Icon(Icons.lock_outline, size: 20),
             suffixIcon: IconButton(
               icon: Icon(
@@ -617,7 +609,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 setState(() => _obscureRegisterPassword = !_obscureRegisterPassword);
               },
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         const SizedBox(height: 14),
@@ -627,8 +618,15 @@ class _LoginScreenState extends State<LoginScreen> {
           controller: _registerConfirmPasswordController,
           obscureText: _obscureRegisterConfirmPassword,
           onSubmitted: (_) => _handleRegister(),
-          decoration: InputDecoration(
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          cursorColor: const Color(0xFF2563EB),
+          decoration: _inputDecoration(
             labelText: 'Confirmar Contraseña',
+            hintText: 'Repite tu contraseña',
             prefixIcon: const Icon(Icons.lock_reset, size: 20),
             suffixIcon: IconButton(
               icon: Icon(
@@ -641,10 +639,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 setState(() => _obscureRegisterConfirmPassword = !_obscureRegisterConfirmPassword);
               },
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
 
         // Botón Registrarse
         ElevatedButton(
@@ -674,7 +671,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
 
         // Switch a Login
         Center(
