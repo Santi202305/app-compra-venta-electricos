@@ -54,7 +54,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             Text('SKU: ${product.sku}', style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 12),
             Chip(
-              backgroundColor: AppColors.success.withOpacity(.12),
+              backgroundColor: AppColors.success.withValues(alpha: .12),
               label: Text(
                 '✓ $remainingStock unidades disponibles',
                 style: const TextStyle(

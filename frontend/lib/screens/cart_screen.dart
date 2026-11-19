@@ -106,7 +106,7 @@ class CartScreen extends StatelessWidget {
                     ElevatedButton(
                       onPressed: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(
+                          MaterialPageRoute<void>(
                             builder: (_) =>
                                 CheckoutScreen(cartState: cartState),
                           ),

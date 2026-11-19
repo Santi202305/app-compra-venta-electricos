@@ -27,19 +27,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _openCart() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => CartScreen(cartState: widget.cartState)),
+      MaterialPageRoute<void>(builder: (_) => CartScreen(cartState: widget.cartState)),
     );
   }
 
   void _openBot() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ChatBotScreen()),
+      MaterialPageRoute<void>(builder: (_) => const ChatBotScreen()),
     );
   }
 
   void _openDetail(Product product) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (_) => ProductDetailScreen(
           product: product,
           cartState: widget.cartState,

@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _goToHome() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (_) => HomeScreen(cartState: widget.cartState),
       ),
     );
