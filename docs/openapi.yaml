@@ -1,0 +1,447 @@
+openapi: 3.0.3
+info:
+  title: Electro Industrial REST API
+  description: API oficial para la plataforma de compra y venta de materiales eléctricos e industriales ("Electro Industrial") en Colombia.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Servidor de desarrollo local
+
+paths:
+  /health:
+    get:
+      summary: Verificación de estado del servicio
+      operationId: checkHealth
+      responses:
+        '200':
+          description: Servicio operativo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /products:
+    get:
+      summary: Listar productos con filtros y paginación
+      operationId: getProducts
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [todos, cables, proteccion, iluminacion, herramientas]
+          description: Filtrar por categoría técnica
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Término de búsqueda en nombre, SKU o especificaciones
+        - name: inStockOnly
+          in: query
+          schema:
+            type: boolean
+          description: Filtrar solo productos con inventario disponible
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Lista de productos obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+
+  /products/{id}:
+    get:
+      summary: Obtener producto por ID numérico
+      operationId: getProductById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detalle del producto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Producto no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products/sku/{sku}:
+    get:
+      summary: Obtener producto por código SKU
+      operationId: getProductBySku
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detalle del producto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Producto no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/register:
+    post:
+      summary: Registro de nuevo usuario
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                  example: Mario Electricista
+                email:
+                  type: string
+                  format: email
+                  example: mario@instalaciones.co
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+      responses:
+        '201':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Datos inválidos o correo ya registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      summary: Iniciar sesión y obtener token JWT
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: cliente@correo.com
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Autenticación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Credenciales incorrectas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/me:
+    get:
+      summary: Perfil del usuario autenticado
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Perfil del usuario autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: No autorizado o token expirado
+
+  /orders:
+    post:
+      summary: Crear un nuevo pedido de compra
+      operationId: createOrder
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, paymentMethod, address]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [productId, qty]
+                    properties:
+                      productId:
+                        type: integer
+                      qty:
+                        type: integer
+                        minimum: 1
+                paymentMethod:
+                  type: string
+                  enum: [nequi, tarjeta, contraentrega]
+                address:
+                  type: string
+                  example: Carrera 15 # 85-30, Bogotá
+      responses:
+        '201':
+          description: Pedido creado y confirmado con voucher digital
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Stock insuficiente o datos incompletos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Historial de pedidos del usuario autenticado
+      operationId: getMyOrders
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de pedidos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+
+  /assistant/chat:
+    post:
+      summary: Consultar al asistente técnico local
+      operationId: chatWithAssistant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  example: ¿Tienen breakers de 20 amperios?
+                contextProductSku:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Respuesta generada por el asistente técnico
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text:
+                    type: string
+                  intent:
+                    type: string
+                  suggestedProducts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  needsHumanAgent:
+                    type: boolean
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+        uptimeSeconds:
+          type: number
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          example: NOT_FOUND
+        message:
+          type: string
+          example: El producto con ID 99 no existe.
+        timestamp:
+          type: string
+          format: date-time
+
+    Product:
+      type: object
+      required: [id, category, name, sku, price, stock]
+      properties:
+        id:
+          type: integer
+          example: 1
+        category:
+          type: string
+          example: proteccion
+        name:
+          type: string
+          example: Breaker DIN 20A Bipolar
+        sku:
+          type: string
+          example: BRK-220-20A
+        price:
+          type: integer
+          example: 38900
+        stock:
+          type: integer
+          example: 24
+        shortDescription:
+          type: string
+        longDescription:
+          type: string
+        specs:
+          type: object
+          additionalProperties:
+            type: string
+        applications:
+          type: array
+          items:
+            type: string
+        standards:
+          type: array
+          items:
+            type: string
+        brand:
+          type: string
+        warranty:
+          type: string
+        imageAsset:
+          type: string
+
+    User:
+      type: object
+      required: [id, name, email, isAdmin]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        isAdmin:
+          type: boolean
+
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    OrderLine:
+      type: object
+      required: [productName, sku, unitPrice, qty, total]
+      properties:
+        productName:
+          type: string
+        sku:
+          type: string
+        unitPrice:
+          type: integer
+        qty:
+          type: integer
+        total:
+          type: integer
+
+    Order:
+      type: object
+      required: [id, date, userEmail, lines, subtotal, shipping, total, paymentLabel, address, status]
+      properties:
+        id:
+          type: integer
+          example: 1001
+        date:
+          type: string
+          format: date-time
+        userEmail:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLine'
+        subtotal:
+          type: integer
+        shipping:
+          type: integer
+          example: 12000
+        total:
+          type: integer
+        paymentLabel:
+          type: string
+        address:
+          type: string
+        status:
+          type: string
+          enum: [pendiente, enCamino, entregado]
+        voucherToken:
+          type: string
