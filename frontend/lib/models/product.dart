@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 /// para evitar errores de tipeo al filtrar (detectable en revisión de PR).
 enum ProductCategory { todos, cables, proteccion, iluminacion, herramientas }
 
-extension ProductCategoryLabel on ProductCategory {
+extension ProductCategoryInfo on ProductCategory {
   String get label {
     switch (this) {
       case ProductCategory.todos:
@@ -20,105 +20,179 @@ extension ProductCategoryLabel on ProductCategory {
     }
   }
 
-  static ProductCategory fromString(String? value) {
-    if (value == null) return ProductCategory.todos;
-    final lower = value.toLowerCase().trim();
-    if (lower.contains('cable')) return ProductCategory.cables;
-    if (lower.contains('protec')) return ProductCategory.proteccion;
-    if (lower.contains('ilumin') || lower.contains('led')) return ProductCategory.iluminacion;
-    if (lower.contains('herram')) return ProductCategory.herramientas;
-    for (final cat in ProductCategory.values) {
-      if (cat.name.toLowerCase() == lower) return cat;
+  /// Color de fondo suave de la categoría (línea gráfica del proyecto).
+  Color get tint {
+    switch (this) {
+      case ProductCategory.todos:
+        return const Color(0xFFF1F5F9);
+      case ProductCategory.cables:
+        return const Color(0xFFE0F2FE);
+      case ProductCategory.proteccion:
+        return const Color(0xFFFEF3C7);
+      case ProductCategory.iluminacion:
+        return const Color(0xFFFEF9C3);
+      case ProductCategory.herramientas:
+        return const Color(0xFFDCFCE7);
     }
-    return ProductCategory.todos;
+  }
+
+  Color get iconColor {
+    switch (this) {
+      case ProductCategory.todos:
+        return const Color(0xFF475569);
+      case ProductCategory.cables:
+        return const Color(0xFF0284C7);
+      case ProductCategory.proteccion:
+        return const Color(0xFFD97706);
+      case ProductCategory.iluminacion:
+        return const Color(0xFFCA8A04);
+      case ProductCategory.herramientas:
+        return const Color(0xFF16A34A);
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case ProductCategory.todos:
+        return Icons.category_outlined;
+      case ProductCategory.cables:
+        return Icons.cable;
+      case ProductCategory.proteccion:
+        return Icons.bolt;
+      case ProductCategory.iluminacion:
+        return Icons.lightbulb_outline;
+      case ProductCategory.herramientas:
+        return Icons.build_outlined;
+    }
   }
 }
+
+/// Estado del stock de un producto. Siempre se comunica con texto,
+/// no solo con color (criterio de accesibilidad de la línea gráfica).
+enum StockStatus { disponible, pocas, agotado }
 
 class Product {
   final int id;
   final ProductCategory category;
   final String name;
   final String sku;
-  final int price; // COP, sin decimales
-  final Color color;
-  final IconData icon;
-  final int stock;
-  final String description;
-  final String? imageUrl;
-  final bool retieCompliant;
+  int price; // COP, sin decimales
+  int stock; // unidades disponibles
+  final String shortDescription;
+  final String longDescription;
+  final Map<String, String> specs;
+  final List<String> applications;
+  final List<String>? includes;
+  final List<String>? standards;
+  final String? brand;
+  final String? warranty;
+  final String? imageAsset;
+  final String? imageGroup;
+  final String? imageCredit;
+  final double rating;
+  final int reviewsCount;
+  final String? featuredTag;
 
-  const Product({
+  Product({
     required this.id,
     required this.category,
     required this.name,
-    this.sku = '',
+    required this.sku,
     required this.price,
-    this.color = const Color(0xFFE3F0FF),
-    this.icon = Icons.electrical_services,
-    this.stock = 46,
-    this.description = '',
-    this.imageUrl,
-    this.retieCompliant = true,
+    required this.stock,
+    this.shortDescription = '',
+    this.longDescription = '',
+    this.specs = const {},
+    this.applications = const [],
+    this.includes,
+    this.standards,
+    this.brand,
+    this.warranty,
+    this.imageAsset,
+    this.imageGroup,
+    this.imageCredit,
+    this.rating = 4.8,
+    this.reviewsCount = 18,
+    this.featuredTag,
   });
 
-  factory Product.fromJson(Map<String, dynamic> json) {
+  Color get color => category.tint;
+  IconData get icon => category.icon;
+
+  /// Resumen plano de especificaciones para compatibilidad con vistas textuales y búsquedas.
+  String get specsText => specs.entries.map((e) => '${e.key}: ${e.value}').join(' · ');
+
+  String get resolvedImageAsset {
+    if (imageAsset != null && imageAsset!.isNotEmpty) {
+      return imageAsset!;
+    }
+    return 'assets/images/products/${sku.toLowerCase()}.jpg';
+  }
+
+  StockStatus get stockStatus {
+    if (stock <= 0) return StockStatus.agotado;
+    if (stock <= 5) return StockStatus.pocas;
+    return StockStatus.disponible;
+  }
+
+  Product copyWith({
+    int? id,
+    ProductCategory? category,
+    String? name,
+    String? sku,
+    int? price,
+    int? stock,
+    String? shortDescription,
+    String? longDescription,
+    Map<String, String>? specs,
+    List<String>? applications,
+    List<String>? includes,
+    List<String>? standards,
+    String? brand,
+    String? warranty,
+    String? imageAsset,
+    String? imageGroup,
+    String? imageCredit,
+    double? rating,
+    int? reviewsCount,
+    String? featuredTag,
+  }) {
     return Product(
-      id: json['id'] is int ? json['id'] as int : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
-      category: ProductCategoryLabel.fromString(json['category']?.toString()),
-      name: json['name']?.toString() ?? '',
-      sku: json['sku']?.toString() ?? '',
-      price: json['price'] is int
-          ? json['price'] as int
-          : (json['price'] as num?)?.round() ?? 0,
-      stock: json['stock'] is int
-          ? json['stock'] as int
-          : (json['stock'] as num?)?.round() ?? 46,
-      description: json['description']?.toString() ?? '',
-      imageUrl: json['imageUrl']?.toString(),
-      retieCompliant: json['retieCompliant'] == true || json['retieCompliant'] == null,
-      color: _colorFromHex(json['colorHex']?.toString()),
-      icon: _iconFromName(json['iconName']?.toString()),
+      id: id ?? this.id,
+      category: category ?? this.category,
+      name: name ?? this.name,
+      sku: sku ?? this.sku,
+      price: price ?? this.price,
+      stock: stock ?? this.stock,
+      shortDescription: shortDescription ?? this.shortDescription,
+      longDescription: longDescription ?? this.longDescription,
+      specs: specs ?? this.specs,
+      applications: applications ?? this.applications,
+      includes: includes ?? this.includes,
+      standards: standards ?? this.standards,
+      brand: brand ?? this.brand,
+      warranty: warranty ?? this.warranty,
+      imageAsset: imageAsset ?? this.imageAsset,
+      imageGroup: imageGroup ?? this.imageGroup,
+      imageCredit: imageCredit ?? this.imageCredit,
+      rating: rating ?? this.rating,
+      reviewsCount: reviewsCount ?? this.reviewsCount,
+      featuredTag: featuredTag ?? this.featuredTag,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'category': category.name,
-      'name': name,
-      'sku': sku,
-      'price': price,
-      'stock': stock,
-      'description': description,
-      'imageUrl': imageUrl,
-      'retieCompliant': retieCompliant,
-    };
-  }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Product &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          sku == other.sku;
 
-  static Color _colorFromHex(String? hexString) {
-    if (hexString == null || hexString.isEmpty) return const Color(0xFFE3F0FF);
-    final buffer = StringBuffer();
-    if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
-    buffer.write(hexString.replaceFirst('#', ''));
-    try {
-      return Color(int.parse(buffer.toString(), radix: 16));
-    } catch (_) {
-      return const Color(0xFFE3F0FF);
-    }
-  }
+  @override
+  int get hashCode => id.hashCode ^ sku.hashCode;
 
-  static IconData _iconFromName(String? iconName) {
-    switch (iconName) {
-      case 'bolt':
-        return Icons.bolt;
-      case 'cable':
-        return Icons.cable;
-      case 'lightbulb_outline':
-        return Icons.lightbulb_outline;
-      case 'speed':
-        return Icons.speed;
-      default:
-        return Icons.electrical_services;
-    }
-  }
+  @override
+  String toString() =>
+      'Product(id: $id, sku: $sku, name: $name, price: $price, stock: $stock)';
 }

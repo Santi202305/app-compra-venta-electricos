@@ -27,12 +27,36 @@ class CartState extends ChangeNotifier {
 
   int get total => subtotal + shipping;
 
-  void addProduct(Product product, int qty) {
-    final existing = _items.where((e) => e.product.id == product.id);
-    if (existing.isNotEmpty) {
-      existing.first.qty += qty;
-    } else {
+  /// Agrega unidades al carrito. Devuelve false (y no cambia nada) si
+  /// no hay stock suficiente para la cantidad pedida.
+  bool addProduct(Product product, int qty) {
+    final index = _items.indexWhere((e) => e.product.id == product.id);
+    final current = index == -1 ? 0 : _items[index].qty;
+    if (qty <= 0 || product.stock <= 0 || current + qty > product.stock) {
+      return false;
+    }
+    if (index == -1) {
       _items.add(CartEntry(product, qty));
+    } else {
+      _items[index].qty += qty;
+    }
+    notifyListeners();
+    return true;
+  }
+
+  /// Suma o resta unidades de un producto ya agregado. Si la cantidad
+  /// llega a cero se quita del carrito; no permite superar el stock.
+  void changeQty(int productId, int delta) {
+    final index = _items.indexWhere((e) => e.product.id == productId);
+    if (index == -1) return;
+    final entry = _items[index];
+    final next = entry.qty + delta;
+    if (next <= 0) {
+      _items.removeAt(index);
+    } else if (next <= entry.product.stock) {
+      entry.qty = next;
+    } else {
+      return;
     }
     notifyListeners();
   }
