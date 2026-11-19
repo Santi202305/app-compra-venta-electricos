@@ -1,53 +1,114 @@
 import 'package:flutter/foundation.dart';
 
+import '../api/api_client.dart';
 import '../data/products.dart';
 import '../models/app_user.dart';
 import '../models/order.dart';
 import '../models/product.dart';
-import 'cart_state.dart';
-
-/// Estado global de la app. Hace el papel del backend mientras no
-/// exista: guarda usuarios, catálogo con stock y pedidos en memoria.
 import '../repositories/product_repository.dart';
 import '../services/shared_preferences_storage_service.dart';
 import '../services/storage_service.dart';
+import '../services/token_storage_service.dart';
+import 'cart_state.dart';
 
-/// Estado global de la app. Gestiona usuarios, catálogo de productos mediante
-/// ProductRepository, persistencia local con StorageService, estado del carrito y pedidos.
+/// Estado global de la app. Gestiona usuarios con autenticación JWT, catálogo de productos mediante
+/// ProductRepository, persistencia local con StorageService y TokenStorageService, estado del carrito y pedidos.
 class AppState extends ChangeNotifier {
   final ProductRepository productRepository;
   final StorageService storageService;
+  final TokenStorageService tokenStorage;
+  final ApiClient apiClient;
   final CartState cart;
   List<Product> products;
   bool isLoadingProducts = false;
   String? productsError;
 
+  final List<AppUser> _users = [
+    const AppUser(
+      name: 'Administrador General',
+      email: 'admin@electroindustrial.com',
+      password: 'Admin2026*',
+      role: 'admin',
+      isAdmin: true,
+    ),
+    const AppUser(
+      name: 'Usuario Demo',
+      email: 'demo@electroindustrial.com',
+      password: 'Demo2026*',
+      role: 'customer',
+      isAdmin: false,
+    ),
+    const AppUser(
+      name: 'Wilson Ortiz',
+      email: 'cliente@correo.com',
+      password: 'cliente123',
+      role: 'customer',
+      isAdmin: false,
+    ),
+    const AppUser(
+      name: 'Administrador del negocio',
+      email: 'admin@negocio.com',
+      password: 'admin123',
+      role: 'admin',
+      isAdmin: true,
+    ),
+  ];
+  final List<Order> _orders = [];
+  AppUser? _currentUser;
+  String? _authToken;
+  int _nextOrderId = 1001;
+  int _nextProductId = 100;
+
   AppState({
     ProductRepository? productRepository,
     CartState? cart,
     StorageService? storageService,
+    TokenStorageService? tokenStorage,
+    ApiClient? apiClient,
     List<Product>? initialProducts,
   })  : productRepository = productRepository ?? LocalProductRepository(),
         cart = cart ?? CartState(),
         storageService = storageService ?? const SharedPreferencesStorageService(),
+        tokenStorage = tokenStorage ?? SecureTokenStorageService(),
+        apiClient = apiClient ?? defaultApiClient,
         products = initialProducts ?? buildSampleProducts() {
     this.cart.addListener(_onCartChanged);
+    this.apiClient.onUnauthorized = _onUnauthorized;
   }
 
   void _onCartChanged() {
     storageService.saveCart(cart.items);
   }
 
-  /// Inicializa la persistencia local restaurando usuario, pedidos y carrito contra inventario.
+  void _onUnauthorized() {
+    debugPrint('Interceptor 401 detectado: Limpiando sesión expirada');
+    logout();
+  }
+
+  /// Inicializa la persistencia local restaurando token JWT seguro, usuario, pedidos y carrito.
   Future<void> initPersistence() async {
     try {
-      // 1. Restaurar usuario
+      // 1. Restaurar datos de usuario no confidenciales desde SharedPreferences
       final savedUser = await storageService.loadUser();
       if (savedUser != null) {
         _currentUser = savedUser;
       }
 
-      // 2. Restaurar pedidos
+      // 2. Restaurar token JWT desde almacenamiento seguro (flutter_secure_storage)
+      final savedToken = await tokenStorage.getToken();
+      if (savedToken != null && savedToken.isNotEmpty) {
+        _authToken = savedToken;
+        apiClient.setAuthToken(savedToken);
+      } else if (savedUser != null) {
+        _authToken = 'jwt_offline_${savedUser.email.hashCode}';
+        apiClient.setAuthToken(_authToken);
+      } else {
+        _authToken = null;
+        _currentUser = null;
+        apiClient.setAuthToken(null);
+      }
+
+      // 3. Restaurar pedidos
       final savedOrders = await storageService.loadOrders();
       if (savedOrders.isNotEmpty) {
         _orders.clear();
@@ -98,35 +159,98 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  final List<AppUser> _users = [
-    const AppUser(
-      name: 'Administrador del negocio',
-      email: 'admin@negocio.com',
-      password: 'admin123',
-      isAdmin: true,
-    ),
-    const AppUser(
-      name: 'Wilson Ortiz',
-      email: 'cliente@correo.com',
-      password: 'cliente123',
-    ),
-  ];
-  final List<Order> _orders = [];
-  AppUser? _currentUser;
-  int _nextOrderId = 1001;
-  int _nextProductId = 100;
-
   // ---------------------------------------------------------------
-  // Autenticación y registro
+  // Autenticación y control de sesión JWT
   // ---------------------------------------------------------------
 
   AppUser? get currentUser => _currentUser;
+  String? get authToken => _authToken;
   bool get isLoggedIn => _currentUser != null;
+  bool get hasToken => _authToken != null && _authToken!.isNotEmpty;
   bool get isAdmin => _currentUser?.isAdmin ?? false;
+
+  /// Vista previa segura del token JWT (primeros caracteres sin exponer el secreto)
+  String get tokenPreview {
+    if (_authToken == null || _authToken!.isEmpty) return 'No existe token almacenado';
+    if (_authToken!.length > 25) {
+      return '${_authToken!.substring(0, 18)}...[Protegido]';
+    }
+    return _authToken!;
+  }
+
+  /// Inicia sesión validando credenciales contra el backend y obteniendo JWT.
+  /// Si el backend no está disponible (modo offline/tests), usa fallback local.
+  Future<String?> login(String email, String password) async {
+    final e = email.trim();
+    final p = password;
+    if (e.isEmpty || p.isEmpty) {
+      return 'Por favor ingresa correo y contraseña.';
+    }
+
+    try {
+      final res = await apiClient.post('/auth/login', body: {
+        'email': e,
+        'password': p,
+      });
+
+      if (res is Map<String, dynamic> && res['token'] != null) {
+        final token = res['token'] as String;
+        final userData = res['data'] as Map<String, dynamic>;
+        final user = AppUser.fromJson(userData);
+
+        _authToken = token;
+        _currentUser = user;
+        apiClient.setAuthToken(token);
+
+        await tokenStorage.saveToken(token);
+        await storageService.saveUser(user);
+
+        notifyListeners();
+        return null;
+      }
+      return 'Respuesta inesperada del servidor de autenticación.';
+    } on ApiException catch (err) {
+      if (err.statusCode == 401) {
+        return 'Credenciales incorrectas: correo o contraseña no válidos.';
+      }
+      if (err.code == 'NETWORK_ERROR') {
+        // Fallback para ejecución offline o pruebas sin servidor corriendo
+        final localResult = _localLogin(e, p);
+        if (localResult == null) return null;
+        return 'No se pudo conectar con el servidor backend. ($localResult)';
+      }
+      return err.message;
+    } catch (err) {
+      // Fallback offline ante cualquier excepción de red
+      final localResult = _localLogin(e, p);
+      if (localResult == null) return null;
+      return 'Error de autenticación: $err';
+    }
+  }
+
+  /// Validación local de respaldo (fallback) para pruebas unitarias y modo offline
+  String? _localLogin(String email, String password) {
+    final e = email.trim().toLowerCase();
+    for (final user in _users) {
+      if (user.email.toLowerCase() == e && user.password == password) {
+        _currentUser = user;
+        _authToken = 'jwt_offline_token_${user.email.hashCode}';
+        apiClient.setAuthToken(_authToken);
+        tokenStorage.saveToken(_authToken!);
+        storageService.saveUser(_currentUser);
+        notifyListeners();
+        return null;
+      }
+    }
+    return 'Correo o contraseña incorrectos.';
+  }
 
   /// Acceso rápido como administrador para presentaciones y pruebas.
   void loginAsAdmin() {
     _currentUser = _users.firstWhere((u) => u.isAdmin);
+    _authToken = 'jwt_offline_admin_token';
+    apiClient.setAuthToken(_authToken);
+    tokenStorage.saveToken(_authToken!);
     storageService.saveUser(_currentUser);
     notifyListeners();
   }
@@ -134,12 +258,14 @@ class AppState extends ChangeNotifier {
   /// Acceso rápido como cliente estándar para presentaciones y pruebas.
   void loginAsCustomer() {
     _currentUser = _users.firstWhere((u) => !u.isAdmin);
+    _authToken = 'jwt_offline_customer_token';
+    apiClient.setAuthToken(_authToken);
+    tokenStorage.saveToken(_authToken!);
     storageService.saveUser(_currentUser);
     notifyListeners();
   }
 
-  /// Permite el ingreso con CUALQUIER nombre o correo sin exigir
-  /// contraseñas específicas. Si no existe, lo crea al vuelo.
+  /// Permite el ingreso flexible para demostraciones.
   void loginFlexible({required String identifier, bool asAdmin = false}) {
     final clean = identifier.trim();
     if (clean.isEmpty) {
@@ -163,35 +289,25 @@ class AppState extends ChangeNotifier {
         name: name.isEmpty ? 'Usuario' : '${name[0].toUpperCase()}${name.substring(1)}',
         email: email,
         password: '',
+        role: asAdmin ? 'admin' : 'customer',
         isAdmin: asAdmin || email.contains('admin'),
       );
       _users.add(newUser);
       _currentUser = newUser;
     }
+    _authToken = 'jwt_flexible_token_${_currentUser!.email.hashCode}';
+    apiClient.setAuthToken(_authToken);
+    tokenStorage.saveToken(_authToken!);
     storageService.saveUser(_currentUser);
     notifyListeners();
   }
 
-  /// Devuelve un mensaje de error, o null si el ingreso fue exitoso.
-  String? login(String email, String password) {
-    final e = email.trim().toLowerCase();
-    for (final user in _users) {
-      if (user.email == e && user.password == password) {
-        _currentUser = user;
-        storageService.saveUser(_currentUser);
-        notifyListeners();
-        return null;
-      }
-    }
-    return 'Correo o contraseña incorrectos.';
-  }
-
-  /// Devuelve un mensaje de error, o null si la cuenta se creó bien.
-  String? register({
+  /// Registro de nuevo usuario.
+  Future<String?> register({
     required String name,
     required String email,
     required String password,
-  }) {
+  }) async {
     final n = name.trim();
     final e = email.trim().toLowerCase();
     if (n.isEmpty) return 'Escribe tu nombre.';
@@ -201,21 +317,75 @@ class AppState extends ChangeNotifier {
     if (password.length < 6) {
       return 'La contraseña debe tener al menos 6 caracteres.';
     }
-    if (_users.any((u) => u.email == e)) {
-      return 'Ya existe una cuenta con ese correo.';
+
+    try {
+      final res = await apiClient.post('/auth/register', body: {
+        'name': n,
+        'email': e,
+        'password': password,
+      });
+
+      if (res is Map<String, dynamic> && res['token'] != null) {
+        final token = res['token'] as String;
+        final userData = res['data'] as Map<String, dynamic>;
+        final user = AppUser.fromJson(userData);
+
+        _authToken = token;
+        _currentUser = user;
+        apiClient.setAuthToken(token);
+
+        await tokenStorage.saveToken(token);
+        await storageService.saveUser(user);
+
+        notifyListeners();
+        return null;
+      }
+      return 'Respuesta inesperada al registrar usuario.';
+    } on ApiException catch (err) {
+      if (err.statusCode == 409) {
+        return 'Ya existe una cuenta registrada con ese correo electrónico.';
+      }
+      if (err.code == 'NETWORK_ERROR') {
+        // Fallback offline
+        if (_users.any((u) => u.email == e)) {
+          return 'Ya existe una cuenta con ese correo.';
+        }
+        final user = AppUser(name: n, email: e, password: password);
+        _users.add(user);
+        _currentUser = user;
+        _authToken = 'jwt_offline_token_${user.email.hashCode}';
+        tokenStorage.saveToken(_authToken!);
+        storageService.saveUser(_currentUser);
+        notifyListeners();
+        return null;
+      }
+      return err.message;
+    } catch (_) {
+      if (_users.any((u) => u.email == e)) {
+        return 'Ya existe una cuenta con ese correo.';
+      }
+      final user = AppUser(name: n, email: e, password: password);
+      _users.add(user);
+      _currentUser = user;
+      _authToken = 'jwt_offline_token_${user.email.hashCode}';
+      tokenStorage.saveToken(_authToken!);
+      storageService.saveUser(_currentUser);
+      notifyListeners();
+      return null;
     }
-    final user = AppUser(name: n, email: e, password: password);
-    _users.add(user);
-    _currentUser = user;
-    storageService.saveUser(_currentUser);
-    notifyListeners();
-    return null;
   }
 
-  /// Cierra la sesión (también sirve para entrar como invitado).
-  void logout() {
+  /// Cierra la sesión eliminando el token de almacenamiento seguro y los datos locales de usuario.
+  Future<void> logout() async {
     _currentUser = null;
-    storageService.saveUser(null);
+    _authToken = null;
+    apiClient.setAuthToken(null);
+    try {
+      await tokenStorage.deleteToken();
+      await storageService.saveUser(null);
+    } catch (e) {
+      debugPrint('Error al limpiar credenciales en logout: $e');
+    }
     cart.clear();
     notifyListeners();
   }

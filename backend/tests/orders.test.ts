@@ -2,10 +2,33 @@ import request from 'supertest';
 import { app } from '../src/app';
 
 describe('Orders API (/api/v1/orders)', () => {
+  let authToken: string;
   let createdOrderId: string;
   let createdTrackingNumber: string;
 
-  it('debe crear una orden validando inventario, calculando flete de $12.000 COP y generando número de guía', async () => {
+  beforeAll(async () => {
+    // Autenticarse con usuario de prueba para obtener token JWT
+    const loginRes = await request(app).post('/api/v1/auth/login').send({
+      email: 'admin@electroindustrial.com',
+      password: 'Admin2026*',
+    });
+    authToken = loginRes.body.token;
+  });
+
+  it('debe rechazar la creación de orden sin token con status 401', async () => {
+    const response = await request(app).post('/api/v1/orders').send({
+      customerName: 'Santiago Ingeniero',
+      customerEmail: 'santiago@uceva.edu.co',
+      shippingAddress: 'Carrera 27 # 45-10, Tuluá, Valle',
+      paymentMethod: 'nequi',
+      items: [{ productId: 1, quantity: 1 }],
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('debe crear una orden autenticada validando inventario, flete de $12.000 COP y guía', async () => {
     const orderPayload = {
       customerName: 'Santiago Ingeniero',
       customerEmail: 'santiago@uceva.edu.co',
@@ -17,7 +40,10 @@ describe('Orders API (/api/v1/orders)', () => {
       ],
     };
 
-    const response = await request(app).post('/api/v1/orders').send(orderPayload);
+    const response = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send(orderPayload);
 
     expect(response.status).toBe(201);
     expect(response.body.success).toBe(true);
@@ -34,8 +60,17 @@ describe('Orders API (/api/v1/orders)', () => {
     createdTrackingNumber = response.body.data.trackingNumber;
   });
 
-  it('debe obtener la orden recién creada por su ID', async () => {
+  it('debe rechazar consulta de orden por ID sin token con status 401', async () => {
     const response = await request(app).get(`/api/v1/orders/${createdOrderId}`);
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('debe obtener la orden recién creada por su ID con token JWT', async () => {
+    const response = await request(app)
+      .get(`/api/v1/orders/${createdOrderId}`)
+      .set('Authorization', `Bearer ${authToken}`);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -43,7 +78,7 @@ describe('Orders API (/api/v1/orders)', () => {
     expect(response.body.data.customerEmail).toBe('santiago@uceva.edu.co');
   });
 
-  it('debe obtener la orden por su número de guía de rastreo', async () => {
+  it('debe obtener la orden por su número de guía de rastreo (público)', async () => {
     const response = await request(app).get(`/api/v1/orders/tracking/${createdTrackingNumber}`);
 
     expect(response.status).toBe(200);
@@ -52,13 +87,16 @@ describe('Orders API (/api/v1/orders)', () => {
   });
 
   it('debe rechazar orden con producto inexistente', async () => {
-    const response = await request(app).post('/api/v1/orders').send({
-      customerName: 'Cliente Prueba',
-      customerEmail: 'prueba@test.com',
-      shippingAddress: 'Calle 10 # 5-20',
-      paymentMethod: 'efecty',
-      items: [{ productId: 99999, quantity: 1 }],
-    });
+    const response = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        customerName: 'Cliente Prueba',
+        customerEmail: 'prueba@test.com',
+        shippingAddress: 'Calle 10 # 5-20',
+        paymentMethod: 'efecty',
+        items: [{ productId: 99999, quantity: 1 }],
+      });
 
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);
@@ -66,13 +104,16 @@ describe('Orders API (/api/v1/orders)', () => {
   });
 
   it('debe rechazar orden cuando la cantidad solicitada excede el stock', async () => {
-    const response = await request(app).post('/api/v1/orders').send({
-      customerName: 'Cliente Prueba',
-      customerEmail: 'prueba@test.com',
-      shippingAddress: 'Calle 10 # 5-20',
-      paymentMethod: 'bancolombia',
-      items: [{ productId: 1, quantity: 999999 }],
-    });
+    const response = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        customerName: 'Cliente Prueba',
+        customerEmail: 'prueba@test.com',
+        shippingAddress: 'Calle 10 # 5-20',
+        paymentMethod: 'bancolombia',
+        items: [{ productId: 1, quantity: 999999 }],
+      });
 
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);

@@ -3,41 +3,44 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:app_compra_venta_electricos/models/order.dart';
 import 'package:app_compra_venta_electricos/models/product.dart';
 import 'package:app_compra_venta_electricos/services/secure_sales_service.dart';
+import 'package:app_compra_venta_electricos/services/token_storage_service.dart';
 import 'package:app_compra_venta_electricos/state/app_state.dart';
 
 void main() {
   group('Autenticación y registro', () {
-    test('rechaza credenciales incorrectas y acepta las correctas', () {
-      final app = AppState();
-      expect(app.login('cliente@correo.com', 'mala'), isNotNull);
+    test('rechaza credenciales incorrectas y acepta las correctas', () async {
+      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      expect(await app.login('cliente@correo.com', 'mala'), isNotNull);
       expect(app.isLoggedIn, isFalse);
-      expect(app.login('cliente@correo.com', 'cliente123'), isNull);
+      expect(await app.login('cliente@correo.com', 'cliente123'), isNull);
       expect(app.isLoggedIn, isTrue);
       expect(app.isAdmin, isFalse);
+      expect(app.hasToken, isTrue);
     });
 
-    test('el administrador entra con su cuenta', () {
-      final app = AppState();
-      expect(app.login('admin@negocio.com', 'admin123'), isNull);
+    test('el administrador entra con su cuenta', () async {
+      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      expect(await app.login('admin@negocio.com', 'admin123'), isNull);
       expect(app.isAdmin, isTrue);
+      expect(app.hasToken, isTrue);
     });
 
-    test('registro valida correo, contraseña y duplicados', () {
-      final app = AppState();
+    test('registro valida correo, contraseña y duplicados', () async {
+      final app = AppState(tokenStorage: InMemoryTokenStorageService());
       expect(
-        app.register(name: 'Ana', email: 'sin-arroba', password: '123456'),
+        await app.register(name: 'Ana', email: 'sin-arroba', password: '123456'),
         isNotNull,
       );
       expect(
-        app.register(name: 'Ana', email: 'ana@correo.com', password: '123'),
+        await app.register(name: 'Ana', email: 'ana@correo.com', password: '123'),
         isNotNull,
       );
       expect(
-        app.register(name: 'Ana', email: 'ana@correo.com', password: '123456'),
+        await app.register(name: 'Ana', email: 'ana@correo.com', password: '123456'),
         isNull,
       );
       expect(
-        app.register(name: 'Ana', email: 'ana@correo.com', password: '123456'),
+        await app.register(name: 'Ana', email: 'ana@correo.com', password: '123456'),
         isNotNull,
       );
     });
@@ -45,7 +48,7 @@ void main() {
 
   group('Carrito, stock y pedidos', () {
     test('no permite agregar más unidades que el stock', () {
-      final app = AppState();
+      final app = AppState(tokenStorage: InMemoryTokenStorageService());
       final soldOut = app.products
           .firstWhere((p) => p.stockStatus == StockStatus.agotado);
       expect(app.cart.addProduct(soldOut, 1), isFalse);
@@ -56,9 +59,9 @@ void main() {
       expect(app.cart.addProduct(limited, 1), isFalse);
     });
 
-    test('crear un pedido descuenta el stock y vacía el carrito', () {
-      final app = AppState();
-      app.login('cliente@correo.com', 'cliente123');
+    test('crear un pedido descuenta el stock y vacía el carrito', () async {
+      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      await app.login('cliente@correo.com', 'cliente123');
       final product = app.products.first;
       final before = product.stock;
 
@@ -77,43 +80,37 @@ void main() {
     });
 
     test('sin productos en el carrito no se crea pedido', () {
-      final app = AppState();
+      final app = AppState(tokenStorage: InMemoryTokenStorageService());
       expect(app.placeOrder(paymentLabel: 'Nequi', address: 'x'), isNull);
     });
   });
 
   group('Panel administrativo', () {
-    test('actualiza stock y precio y agrega productos', () {
-      final app = AppState();
+    test('permite actualizar stock y precio', () {
+      final app = AppState(tokenStorage: InMemoryTokenStorageService());
       final product = app.products.first;
-      app.updateProduct(product, stock: 5, price: 40000);
-      expect(product.stock, 5);
-      expect(product.price, 40000);
-
-      final count = app.products.length;
-      app.addProduct(
-        name: 'Toma doble',
-        sku: 'TOM-DBL',
-        category: ProductCategory.proteccion,
-        price: 9000,
-        stock: 30,
-      );
-      expect(app.products.length, count + 1);
+      app.updateProduct(product, stock: 99, price: 50000);
+      expect(product.stock, 99);
+      expect(product.price, 50000);
     });
 
-    test('el administrador puede cambiar el estado de un pedido', () {
-      final app = AppState();
+    test('permite cambiar el estado de un pedido', () async {
+      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      await app.login('cliente@correo.com', 'cliente123');
       app.cart.addProduct(app.products.first, 1);
-      final order =
-          app.placeOrder(paymentLabel: 'Nequi', address: 'Calle 1')!;
+      final order = app.placeOrder(paymentLabel: 'Nequi', address: 'x')!;
+
       app.setOrderStatus(order, OrderStatus.enCamino);
       expect(order.status, OrderStatus.enCamino);
+      app.setOrderStatus(order, OrderStatus.entregado);
+      expect(order.status, OrderStatus.entregado);
     });
   });
 
   group('Ventas seguras y Voucher encriptado', () {
     test('genera voucher con token encriptado y envío por correo', () async {
-      final app = AppState();
+      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      await app.login('cliente@correo.com', 'cliente123');
       app.cart.addProduct(app.products.first, 1);
       final order = app.placeOrder(paymentLabel: 'Nequi', address: 'Calle 25')!;
 

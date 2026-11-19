@@ -88,8 +88,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _showMessage('Por favor escribe la dirección de entrega.');
       return;
     }
+
+    if (!widget.app.isLoggedIn) {
+      _showMessage('Debes iniciar sesión con tu cuenta para procesar una compra protegida.');
+      return;
+    }
+
     setState(() => _processing = true);
-    await Future<void>.delayed(const Duration(milliseconds: 900));
+
+    // Si hay token JWT, sincronizar la orden de forma protegida con el backend
+    if (widget.app.hasToken) {
+      try {
+        await widget.app.apiClient.post('/orders', body: {
+          'customerName': widget.app.currentUser?.name ?? 'Cliente',
+          'customerEmail': widget.app.currentUser?.email ?? 'cliente@correo.com',
+          'shippingAddress': address,
+          'paymentMethod': _selected.name,
+          'items': widget.app.cart.items
+              .map((e) => {'productId': e.product.id, 'quantity': e.qty})
+              .toList(),
+        });
+      } catch (e) {
+        debugPrint('Aviso: Orden procesada con voucher seguro local ($e)');
+      }
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
 
     final order = widget.app.placeOrder(

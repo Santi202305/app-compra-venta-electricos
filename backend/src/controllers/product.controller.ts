@@ -39,6 +39,44 @@ export class ProductController {
       next(error);
     }
   };
+
+  public createProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const product = await this.service.createProduct(req.body);
+      res.status(201).json({
+        success: true,
+        data: product,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public updateProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const product = await this.service.updateProduct(id, req.body);
+      res.status(200).json({
+        success: true,
+        data: product,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public deleteProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      await this.service.deleteProduct(id);
+      res.status(200).json({
+        success: true,
+        message: `Producto con ID ${id} eliminado con éxito`,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const productController = new ProductController();
