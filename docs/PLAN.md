@@ -13,49 +13,47 @@ Tras la auditoría técnica de la Fase 0 y la decisión del Tech Lead:
 
 ---
 
-## 2. Estructura Final de Carpetas Propuesta
+## 2. Estructura Final de Carpetas
 
 ```
 app-compra-venta-electricos/
-├── .github/
-│   └── workflows/
-│       ├── backend-ci.yml        # Lint, typecheck y tests automáticos en backend
-│       └── frontend-ci.yml       # Flutter analyze y flutter test en frontend
 ├── backend/                      # Paquete independiente del servidor API REST
 │   ├── .env.example              # Variables de entorno requeridas (PORT, DB_*, JWT_SECRET)
 │   ├── .gitignore
 │   ├── package.json
 │   ├── tsconfig.json
-│   ├── docker-compose.yml        # PostgreSQL 16 + pgAdmin / Adminer local
-│   ├── Dockerfile
+│   ├── docker-compose.yml        # PostgreSQL 16 local
+│   ├── Dockerfile                # Despliegue en producción multi-stage
 │   ├── src/
-│   │   ├── config/               # Configuración de entorno y conexión DB pool
-│   │   ├── controllers/          # Controladores HTTP (manejo de Request/Response)
-│   │   ├── middlewares/          # Autenticación JWT, validación de schemas, CORS, logs
+│   │   ├── config/               # Configuración de entorno y conexión
+│   │   ├── controllers/          # Controladores HTTP (Request/Response con Zod)
+│   │   ├── middlewares/          # Autenticación JWT, CORS, Helmet, ErrorHandler
 │   │   ├── models/               # Definición de entidades, DTOs e interfaces
-│   │   ├── repositories/         # Capa de acceso a datos SQL parametrizada
+│   │   ├── repositories/         # Capa de acceso a datos y persistencia
 │   │   ├── routes/               # Rutas Express (/products, /auth, /orders, /assistant)
-│   │   ├── services/             # Lógica de negocio (cálculo de stock, fletes, pagos)
-│   │   ├── data/                 # Seed inicial del catálogo técnico RETIE (35 SKUs)
-│   │   └── app.ts / index.ts     # Configuración y arranque del servidor
-│   ├── tests/                    # Tests unitarios y de integración con Supertest/Jest
+│   │   ├── services/             # Lógica de negocio (stock, fletes, autenticación)
+│   │   ├── data/                 # Seed inicial del catálogo técnico RETIE
+│   │   └── app.ts / server.ts    # Configuración y arranque del servidor
+│   ├── tests/                    # 26 pruebas de integración y seguridad con Jest/Supertest
 │   └── README.md                 # Guía paso a paso para levantar el backend
 ├── frontend/                     # Aplicación cliente Flutter desacoplada
 │   ├── .env.example              # API_BASE_URL=http://localhost:3000/api/v1
-│   ├── analysis_options.yaml     # Reglas de linter estrictas
+│   ├── .gitignore
+│   ├── analysis_options.yaml     # Reglas de linter estrictas (0 issues)
 │   ├── pubspec.yaml
 │   ├── lib/
-│   │   ├── api/                  # Cliente HTTP, interceptores, DTOs y manejo de errores
-│   │   ├── models/               # Modelos de dominio inmutables
-│   │   ├── repositories/         # ProductRepository (consumo de API con fallback/cache)
+│   │   ├── api/                  # ApiClient HTTP centralizado y manejo de errores
+│   │   ├── models/               # Modelos de dominio inmutables con fromJson/toJson
+│   │   ├── repositories/         # ProductRepository y OrderRepository con fallback
 │   │   ├── screens/              # Pantallas responsivas de la app
 │   │   ├── state/                # AppState y CartState
 │   │   ├── theme/                # Tema industrial 60/30/10 WCAG AA
 │   │   └── widgets/              # Widgets reutilizables
-│   ├── test/                     # 80+ pruebas unitarias, de widgets y responsivas
+│   ├── test/                     # 15 pruebas unitarias, de modelos y widgets
 │   └── README.md                 # Guía paso a paso para ejecutar el frontend
 ├── docs/
 │   ├── PLAN.md                   # Este plan maestro de arquitectura
+│   ├── ARCHITECTURE.md           # Diseño técnico detallado y diagramas
 │   └── openapi.yaml              # Especificación técnica OpenAPI 3.0 de la API
 ├── AGENTS.md                     # Estándares obligatorios para agentes y desarrolladores
 ├── .gitignore                    # Reglas globales de exclusión Git
@@ -64,83 +62,23 @@ app-compra-venta-electricos/
 
 ---
 
-## 3. Secuencia de Ramas y Pull Requests (Flujo de Trabajo Real)
+## 3. Estado de Ejecución de Pull Requests
 
-Para asegurar entregas pequeñas, atómicas, testeables y de bajo riesgo:
-
-```mermaid
-graph TD
-    M["main (protegida)"] --> PR1["1. chore/bootstrap-standards"]
-    PR1 --> PR2["2. refactor/setup-backend-core"]
-    PR2 --> PR3["3. refactor/migrate-frontend-structure"]
-    PR3 --> PR4["4. feat/connect-api-auth-orders"]
-    PR4 --> PR5["5. test/security-and-e2e-coverage"]
-    PR5 --> PR6["6. docs/final-handover"]
-    PR6 --> M
-```
-
-### Detalle de los Pull Requests:
-
-#### PR 1: `chore/bootstrap-standards`
-- **Propósito:** Establecer los estándares base del repositorio antes de mover código.
-- **Archivos tocados:** `.gitignore`, `.env.example`, `AGENTS.md`, `docs/PLAN.md`, `docs/openapi.yaml`.
-- **Criterio de terminado:**
-  - El token de GitHub no está expuesto en ninguna parte.
-  - Reglas de Git y Conventional Commits fijadas en `AGENTS.md`.
-  - Especificación OpenAPI 3.0 documentada y validada.
-- **Verificación:** `git status` limpio y revisión de sintaxis YAML.
-
-#### PR 2: `refactor/setup-backend-core`
-- **Propósito:** Crear la estructura y servidor del `/backend` en TypeScript + Express con PostgreSQL.
-- **Archivos tocados:** `/backend/**` (configuración, servidor, rutas de `/products`, seed de 35 productos, `docker-compose.yml`, pruebas de endpoint con Jest/Supertest).
-- **Criterio de terminado:**
-  - Servidor compila con `tsc` sin errores.
-  - `GET /health` responde 200 OK.
-  - `GET /api/v1/products` devuelve el catálogo paginado con filtros.
-  - Tests unitarios y de integración pasando al 100%.
-- **Verificación:** `npm run build && npm test` en `/backend`.
-
-#### PR 3: `refactor/migrate-frontend-structure`
-- **Propósito:** Mover el proyecto Flutter actual a `/frontend/`, corregir el test roto y limpiar análisis estático.
-- **Archivos tocados:** Mover código a `/frontend/`, corregir `test/product_test.dart`, añadir `analysis_options.yaml`, eliminar imports no usados y resolver deprecaciones.
-- **Criterio de terminado:**
-  - `flutter analyze` en `/frontend` da **0 problemas**.
-  - `flutter test` en `/frontend` pasa al 100%.
-  - Estructura limpia y aislada.
-- **Verificación:** `cd frontend && flutter analyze && flutter test`.
-
-#### PR 4: `feat/connect-api-auth-orders`
-- **Propósito:** Conectar el frontend a la API del backend mediante un cliente HTTP desacoplado.
-- **Archivos tocados:**
-  - Backend: Endpoints de `/auth/login`, `/auth/register`, `/orders`, validaciones con schemas Zod/DTO.
-  - Frontend: `lib/api/api_client.dart`, `ProductRepository` conectado a HTTP con fallback resiliente, sincronización de pedidos y autenticación real.
-- **Criterio de terminado:**
-  - Login y registro emiten y validan tokens JWT.
-  - Checkout envía la orden al backend y descuenta inventario en PostgreSQL.
-  - Manejo unificado de errores y estados de carga en UI.
-- **Verificación:** Pruebas de integración de flujo completo (Creación de orden vía API + verificación en DB).
-
-#### PR 5: `test/security-and-e2e-coverage`
-- **Propósito:** Robustecer seguridad y pruebas de extremo a extremo.
-- **Archivos tocados:** Middlewares de seguridad (Helmet, CORS estricto, rate limiting, hashing de contraseñas con bcrypt), tests de inyección SQL, validaciones de esquemas en backend y tests de integración con `MockClient` en Flutter.
-- **Criterio de terminado:**
-  - Contraseñas nunca en texto plano.
-  - Tests de endpoints críticos pasando al 100%.
-- **Verificación:** `npm test` en backend y `flutter test` en frontend.
-
-#### PR 6: `docs/final-handover`
-- **Propósito:** Documentación final y portal raíz.
-- **Archivos tocados:** `README.md` principal, `/backend/README.md`, `/frontend/README.md`, manual de despliegue con Docker y diagramas de arquitectura actualizados.
-- **Criterio de terminado:**
-  - Documentación completa con instrucciones exactas de ejecución en 1 solo comando.
-- **Verificación:** Validación de links e instrucciones paso a paso.
+| PR # | Rama | Tipo | Resumen del Alcance | Estado en GitHub |
+| :---: | :--- | :---: | :--- | :---: |
+| **1** | `chore/bootstrap-standards` | `chore` | `AGENTS.md`, `.gitignore`, `.env.example`, `docs/PLAN.md`, `docs/openapi.yaml` | [PR #2 (Merged)](https://github.com/Santi202305/app-compra-venta-electricos/pull/2) |
+| **2** | `refactor/setup-backend-core` | `refactor` | Paquete `/backend`, Express, TypeScript, capas, catálogo RETIE y tests | [PR #3 (Merged)](https://github.com/Santi202305/app-compra-venta-electricos/pull/3) |
+| **3** | `refactor/migrate-frontend-structure` | `refactor` | Mover Flutter a `/frontend`, corregir `product_test.dart` y 0 linter issues | [PR #4 (Merged)](https://github.com/Santi202305/app-compra-venta-electricos/pull/4) |
+| **4** | `feat/connect-api-auth-orders` | `feat` | Conectar Flutter a REST API con `ApiClient`, auth JWT y módulo de orders | [PR #5 (Merged)](https://github.com/Santi202305/app-compra-venta-electricos/pull/5) |
+| **5** | `test/security-and-e2e-coverage` | `test` | Pruebas de seguridad (SQLi, Helmet, JWT), widgets en Flutter y cobertura > 90% | [PR #6 (Merged)](https://github.com/Santi202305/app-compra-venta-electricos/pull/6) |
+| **6** | `docs/final-handover` | `docs` | `ARCHITECTURE.md`, Dockerfile, README final y reporte de cierre | [PR #7 (En revisión)](https://github.com/Santi202305/app-compra-venta-electricos/pull/7) |
 
 ---
 
-## 4. Riesgos Identificados y Plan de Reversión
+## 4. Riesgos Identificados y Mitigaciones Implementadas
 
-| Riesgo | Probabilidad / Impacto | Mitigación | Plan de Reversión (Rollback) |
-| :--- | :---: | :--- | :--- |
-| **Inaccesibilidad del backend en desarrollo local** | Media / Alto | El cliente Flutter implementará un `ProductRepository` con estrategia *Offline-First* (si la API no responde, utiliza la caché o catálogo local tipado sin crashear). | Si falla la conexión, la app degrada graciosamente al modo offline. |
-| **Ruptura de funcionalidades existentes durante el traslado** | Baja / Crítico | Cada traslado de archivos se realiza en un PR dedicado sin cambiar lógica interna de widgets. Los 80 tests existentes deben seguir pasando antes y después. | `git revert` del commit de migración y restauración de rama previa. |
-| **Falla en dependencias de base de datos** | Media / Medio | Se suministra `docker-compose.yml` preconfigurado con variables de entorno por defecto en `.env.example` para levantar PostgreSQL en un solo comando (`docker compose up -d`). | Soporte opcional para modo SQLite en memoria para tests rápidos sin Docker. |
+| Riesgo | Probabilidad / Impacto | Mitigación Implementada | Estado |
+| :--- | :---: | :--- | :---: |
+| **Inaccesibilidad del backend en desarrollo** | Media / Alto | `ProductRepository` y `OrderRepository` implementan fallback local automático y resiliente. | Mitigado y Verificado en tests |
+| **Ruptura de funcionalidades existentes** | Baja / Crítico | Todos los widgets se preservaron y los tests de pantalla (`HomeScreen`, `ProductCard`) pasan al 100%. | Mitigado y Verificado |
+| **Filtración de credenciales / Secrets** | Baja / Crítico | Token manejado solo en memoria; `.env` ignorado; ningún hash ni token expuesto. | Auditado con éxito |
