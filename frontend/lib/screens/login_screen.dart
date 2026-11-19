@@ -58,19 +58,59 @@ class _LoginScreenState extends State<LoginScreen> {
     _goToHome();
   }
 
-  void _submitTraditional() {
-    final String? error = _registerMode
-        ? widget.app.register(
-            name: _nameController.text,
-            email: _emailController.text,
-            password: _passwordController.text,
-          )
-        : widget.app.login(_emailController.text, _passwordController.text);
-    if (error != null) {
-      setState(() => _error = error);
-      return;
+  bool _isLoading = false;
+
+  void _fillSeedAdmin() {
+    setState(() {
+      _showTraditional = true;
+      _registerMode = false;
+      _emailController.text = 'admin@electroindustrial.com';
+      _passwordController.text = 'Admin2026*';
+      _error = null;
+    });
+  }
+
+  void _fillSeedDemo() {
+    setState(() {
+      _showTraditional = true;
+      _registerMode = false;
+      _emailController.text = 'demo@electroindustrial.com';
+      _passwordController.text = 'Demo2026*';
+      _error = null;
+    });
+  }
+
+  Future<void> _submitTraditional() async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final String? error = _registerMode
+          ? await widget.app.register(
+              name: _nameController.text,
+              email: _emailController.text,
+              password: _passwordController.text,
+            )
+          : await widget.app.login(_emailController.text, _passwordController.text);
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (error != null) {
+        setState(() => _error = error);
+        return;
+      }
+      _goToHome();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = 'Error inesperado de autenticación: $e';
+      });
     }
-    _goToHome();
   }
 
   @override
@@ -301,26 +341,79 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           if (_error != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              _error!,
-                              style: const TextStyle(
-                                color: AppColors.danger,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppColors.danger.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppColors.danger.withValues(alpha: 0.4)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.error_outline, color: AppColors.danger, size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _error!,
+                                      style: const TextStyle(
+                                        color: AppColors.danger,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 14),
                           ElevatedButton(
-                            onPressed: _submitTraditional,
-                            child: Text(_registerMode ? 'Crear cuenta' : 'Ingresar'),
+                            onPressed: _isLoading ? null : _submitTraditional,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(_registerMode ? 'Crear cuenta con JWT' : 'Ingresar con JWT'),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Probar usuario:',
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                              ),
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                onPressed: _fillSeedAdmin,
+                                child: const Text('Admin', style: TextStyle(fontSize: 11)),
+                              ),
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                onPressed: _fillSeedDemo,
+                                child: const Text('Demo', style: TextStyle(fontSize: 11)),
+                              ),
+                            ],
                           ),
                           TextButton(
-                            onPressed: () => setState(() {
-                              _registerMode = !_registerMode;
-                              _error = null;
-                            }),
+                            onPressed: _isLoading
+                                ? null
+                                : () => setState(() {
+                                      _registerMode = !_registerMode;
+                                      _error = null;
+                                    }),
                             child: Text(
                               _registerMode
                                   ? 'Ya tengo cuenta: ingresar'
