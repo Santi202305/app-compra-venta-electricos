@@ -5,6 +5,9 @@ import morgan from 'morgan';
 import { config } from './config';
 import healthRoutes from './routes/health.routes';
 import productRoutes from './routes/product.routes';
+import authRoutes from './routes/auth.routes';
+import orderRoutes from './routes/order.routes';
+import assistantRoutes from './routes/assistant.routes';
 import { errorHandler } from './middlewares/error.middleware';
 
 export function createApp(): Application {
@@ -23,6 +26,9 @@ export function createApp(): Application {
   const apiRouter = express.Router();
   apiRouter.use('/health', healthRoutes);
   apiRouter.use('/products', productRoutes);
+  apiRouter.use('/auth', authRoutes);
+  apiRouter.use('/orders', orderRoutes);
+  apiRouter.use('/assistant', assistantRoutes);
 
   app.use(config.apiPrefix, apiRouter);
 

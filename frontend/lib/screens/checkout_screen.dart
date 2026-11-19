@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../repositories/order_repository.dart';
 import '../state/cart_state.dart';
 import 'confirmation_screen.dart';
 
@@ -16,11 +17,28 @@ extension PaymentMethodLabel on PaymentMethod {
         return 'Pago contraentrega (Efecty)';
     }
   }
+
+  String get apiValue {
+    switch (this) {
+      case PaymentMethod.nequi:
+        return 'nequi';
+      case PaymentMethod.tarjeta:
+        return 'tarjeta';
+      case PaymentMethod.contraentrega:
+        return 'efecty';
+    }
+  }
 }
 
 class CheckoutScreen extends StatefulWidget {
   final CartState cartState;
-  const CheckoutScreen({super.key, required this.cartState});
+  final OrderRepository? repository;
+
+  const CheckoutScreen({
+    super.key,
+    required this.cartState,
+    this.repository,
+  });
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -28,17 +46,29 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   PaymentMethod _selected = PaymentMethod.nequi;
+  bool _isSubmitting = false;
 
-  void _confirmOrder() {
-    // NOTA: aquí es donde, en la versión real, se llamaría al backend
-    // (Spring Boot) para crear el pedido y a la pasarela de pagos
-    // (Wompi/PayU/ePayco) para procesar el cobro con Nequi o Efecty.
-    widget.cartState.clear();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => ConfirmationScreen(cartState: widget.cartState),
-      ),
+  Future<void> _confirmOrder() async {
+    setState(() => _isSubmitting = true);
+
+    final repository = widget.repository ?? defaultOrderRepository;
+    await repository.submitOrder(
+      cartState: widget.cartState,
+      customerName: 'Electricista Registrado',
+      customerEmail: 'cliente@electroindustrial.com.co',
+      shippingAddress: 'Dirección del proyecto eléctrico',
+      paymentMethod: _selected.apiValue,
     );
+
+    widget.cartState.clear();
+
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => ConfirmationScreen(cartState: widget.cartState),
+        ),
+      );
+    }
   }
 
   @override
@@ -60,7 +90,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 // ignore: deprecated_member_use
                 groupValue: _selected,
                 // ignore: deprecated_member_use
-                onChanged: (value) => setState(() => _selected = value!),
+                onChanged: _isSubmitting
+                    ? null
+                    : (value) => setState(() => _selected = value!),
                 title: Text(method.label),
               ),
             ),
@@ -75,8 +107,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
             const Spacer(),
             ElevatedButton(
-              onPressed: _confirmOrder,
-              child: const Text('Confirmar pedido'),
+              onPressed: _isSubmitting ? null : _confirmOrder,
+              child: _isSubmitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Confirmar pedido'),
             ),
           ],
         ),
