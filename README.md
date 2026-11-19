@@ -1,64 +1,75 @@
-# App de compra y venta de materiales eléctricos e industriales
+# App de Compra y Venta de Materiales Eléctricos e Industriales
 
-Proyecto académico — UCEVA, Ingeniería de Sistemas, Electiva Profesional I.
+Plataforma de comercio electrónico B2B/B2C especializada en materiales, conductores y herramientas eléctricas en Colombia, con catálogo certificado bajo normativas técnicas **RETIE** y **NTC 2050**.
 
-> El proyecto todavía no tiene un nombre comercial definitivo. Este README
-> se actualizará cuando el equipo lo defina.
+---
 
-## Descripción
+## 🏛️ Arquitectura del Sistema
 
-Aplicación móvil que permite a electricistas, contratistas y dueños de
-casa buscar, cotizar y comprar materiales y herramientas eléctricas, con
-carrito de compras, checkout y un asistente virtual (bot de preguntas
-frecuentes) disponible 24/7.
+El repositorio está organizado como un monorepo desacoplado con separación estricta de responsabilidades:
 
-## Stack tecnológico
+```
+app-compra-venta-electricos/
+├── backend/            # Servidor API REST en Node.js (TypeScript) + Express
+│   ├── src/            # Capas: routes → controllers → services → repositories
+│   ├── tests/          # Pruebas con Jest y Supertest
+│   └── docker-compose.yml # PostgreSQL 16
+├── frontend/           # Aplicación cliente en Flutter 3.x (Móvil, Web, Desktop)
+│   ├── lib/            # UI, estado, capa cliente API (lib/api/)
+│   └── test/           # Pruebas unitarias y de widgets
+├── docs/               # Especificación OpenAPI 3.0 y Plan de Arquitectura
+│   ├── PLAN.md         # Plan maestro de modernización y ramas
+│   └── openapi.yaml    # Contrato formal de la API REST
+└── AGENTS.md           # Estándares de ingeniería, seguridad y flujo Git
+```
 
-- **Frontend móvil:** Flutter
-- **Backend (por integrar):** Spring Boot (API REST)
-- **Base de datos (por integrar):** PostgreSQL
-- **Pagos (por integrar):** pasarela agregadora (Wompi/PayU/ePayco) para
-  Nequi y Efecty
+---
 
-## Estado actual
+## 🚀 Inicio Rápido (Desarrollo Local)
 
-Esta es la **estructura inicial del proyecto**: la app corre de forma
-independiente con datos de catálogo simulados (`lib/data/products.dart`),
-sin conexión todavía al backend. Sirve como base para ir conectando cada
-funcionalidad real por Pull Request.
+### 1. Prerrequisitos
+- **Node.js**: v18+ y `npm`
+- **Docker** y **Docker Compose**: para PostgreSQL 16
+- **Flutter SDK**: v3.x+
 
-## Pantallas incluidas
-
-1. Ingreso (login simple, sin autenticación real todavía)
-2. Catálogo con filtro por categoría
-3. Detalle de producto
-4. Carrito de compras
-5. Checkout (selección de método de pago)
-6. Confirmación de pedido
-7. Asistente virtual (bot de preguntas frecuentes)
-
-## Cómo correr el proyecto
-
+### 2. Configuración de Variables de Entorno
+Copiar el archivo de plantilla a `.env`:
 ```bash
+cp .env.example .env
+```
+
+### 3. Levantar la Base de Datos y el Backend
+```bash
+# Iniciar PostgreSQL 16
+cd backend
+docker-compose up -d
+
+# Instalar dependencias e iniciar el servidor
+npm install
+npm run dev
+```
+La API estará disponible en `http://localhost:3000/api/v1` (Health check: `http://localhost:3000/api/v1/health`).
+
+### 4. Levantar la Aplicación Frontend
+```bash
+cd frontend
 flutter pub get
 flutter run
 ```
 
-## Estructura de carpetas
+---
 
-```
-lib/
-  data/       # datos de ejemplo (catálogo, respuestas del bot)
-  models/     # modelos de datos (Product)
-  screens/    # una pantalla por archivo
-  state/      # estado de la app (CartState)
-  theme/      # colores y tema visual
-  widgets/    # widgets reutilizables (ProductCard)
-```
+## 📜 Contrato de API y Documentación
 
-## Flujo de ramas
+- **OpenAPI 3.0 Specification:** [`docs/openapi.yaml`](docs/openapi.yaml)
+- **Plan Maestro de Migración:** [`docs/PLAN.md`](docs/PLAN.md)
+- **Reglas para Desarrolladores y Agentes:** [`AGENTS.md`](AGENTS.md)
 
-- `main`: rama protegida, solo recibe cambios vía Pull Request aprobado.
-- `develop`: rama de integración de funcionalidades.
-- `feature/<nombre>`: una rama por funcionalidad, creada desde `develop`.
-- `fix/<nombre>`: corrección puntual de errores.
+---
+
+## 🌿 Flujo de Git y Contribución
+
+- **Rama Base:** `main` (protegida).
+- **Commits:** Obligatorio seguir el estándar **Conventional Commits**:
+  `tipo(alcance): descripción en imperativo` (`feat`, `fix`, `refactor`, `chore`, `docs`, `test`).
+- **Pull Requests:** Todos los cambios se entregan mediante Pull Requests pequeños, con checklist de pruebas y linter aprobados.
