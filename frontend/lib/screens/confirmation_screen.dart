@@ -32,7 +32,7 @@ class ConfirmationScreen extends StatelessWidget {
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
+                    MaterialPageRoute<void>(
                       builder: (_) => HomeScreen(cartState: cartState),
                     ),
                     (route) => false,

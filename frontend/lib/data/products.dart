@@ -1,64 +1,63 @@
 import 'package:flutter/material.dart';
 
 import '../models/product.dart';
-import '../theme/app_theme.dart';
 
 /// Catálogo de ejemplo. En la versión real esto vendrá del backend
-/// (Spring Boot + PostgreSQL) a través de una llamada REST; por ahora
-/// se deja como datos locales para poder navegar la app sin backend.
+/// (Node.js + PostgreSQL) a través de una llamada REST; por ahora
+/// se deja como datos locales con fallback seguro.
 final List<Product> kProducts = [
-  Product(
+  const Product(
     id: 1,
     category: ProductCategory.proteccion,
     name: 'Breaker DIN 20A Bipolar',
     sku: 'BRK-220-20A',
     price: 38900,
-    color: const Color(0xFFF0EBFF),
+    color: Color(0xFFF0EBFF),
     icon: Icons.bolt,
   ),
-  Product(
+  const Product(
     id: 2,
     category: ProductCategory.cables,
     name: 'Cable THHN #12 AWG (m)',
     sku: 'CBL-THN-12',
     price: 3200,
-    color: const Color(0xFFE3F0FF),
+    color: Color(0xFFE3F0FF),
     icon: Icons.cable,
   ),
-  Product(
+  const Product(
     id: 3,
     category: ProductCategory.iluminacion,
     name: 'Panel LED 18W Redondo',
     sku: 'LED-PN-18W',
     price: 16500,
-    color: const Color(0xFFFFF8E1),
+    color: Color(0xFFFFF8E1),
     icon: Icons.lightbulb_outline,
   ),
-  Product(
+  const Product(
     id: 4,
     category: ProductCategory.herramientas,
     name: 'Multímetro Digital CAT III',
     sku: 'HTL-MULT-3',
     price: 64900,
-    color: const Color(0xFFEEF1F4),
+    color: Color(0xFFEEF1F4),
     icon: Icons.speed,
   ),
-  Product(
+  const Product(
     id: 5,
     category: ProductCategory.proteccion,
     name: 'Totalizador 2x40A',
     sku: 'BRK-TOT-40A',
     price: 52000,
-    color: const Color(0xFFF0EBFF),
+    color: Color(0xFFF0EBFF),
     icon: Icons.bolt,
   ),
-  Product(
+  const Product(
     id: 6,
     category: ProductCategory.cables,
     name: 'Cable Encauchetado 3x14',
     sku: 'CBL-ENC-314',
     price: 5400,
-    color: const Color(0xFFE3F0FF),
+    color: Color(0xFFE3F0FF),
     icon: Icons.cable,
   ),
 ];

@@ -35,7 +35,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // (Wompi/PayU/ePayco) para procesar el cobro con Nequi o Efecty.
     widget.cartState.clear();
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (_) => ConfirmationScreen(cartState: widget.cartState),
       ),
     );
@@ -57,7 +57,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               (method) => RadioListTile<PaymentMethod>(
                 contentPadding: EdgeInsets.zero,
                 value: method,
+                // ignore: deprecated_member_use
                 groupValue: _selected,
+                // ignore: deprecated_member_use
                 onChanged: (value) => setState(() => _selected = value!),
                 title: Text(method.label),
               ),
