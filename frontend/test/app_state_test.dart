@@ -1,15 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:app_compra_venta_electricos/api/api_client.dart';
 import 'package:app_compra_venta_electricos/models/order.dart';
 import 'package:app_compra_venta_electricos/models/product.dart';
 import 'package:app_compra_venta_electricos/services/secure_sales_service.dart';
 import 'package:app_compra_venta_electricos/services/token_storage_service.dart';
 import 'package:app_compra_venta_electricos/state/app_state.dart';
 
+AppState createTestAppState() => AppState(
+      tokenStorage: InMemoryTokenStorageService(),
+      apiClient: ApiClient(baseUrl: 'http://127.0.0.1:59999/api/v1'),
+    );
+
 void main() {
   group('Autenticación y registro', () {
     test('rechaza credenciales incorrectas y acepta las correctas', () async {
-      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      final app = createTestAppState();
       expect(await app.login('cliente@correo.com', 'mala'), isNotNull);
       expect(app.isLoggedIn, isFalse);
       expect(await app.login('cliente@correo.com', 'cliente123'), isNull);
@@ -19,14 +25,14 @@ void main() {
     });
 
     test('el administrador entra con su cuenta', () async {
-      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      final app = createTestAppState();
       expect(await app.login('admin@negocio.com', 'admin123'), isNull);
       expect(app.isAdmin, isTrue);
       expect(app.hasToken, isTrue);
     });
 
     test('registro valida correo, contraseña y duplicados', () async {
-      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      final app = createTestAppState();
       expect(
         await app.register(name: 'Ana', email: 'sin-arroba', password: '123456'),
         isNotNull,
@@ -48,7 +54,7 @@ void main() {
 
   group('Carrito, stock y pedidos', () {
     test('no permite agregar más unidades que el stock', () {
-      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      final app = createTestAppState();
       final soldOut = app.products
           .firstWhere((p) => p.stockStatus == StockStatus.agotado);
       expect(app.cart.addProduct(soldOut, 1), isFalse);
@@ -60,7 +66,7 @@ void main() {
     });
 
     test('crear un pedido descuenta el stock y vacía el carrito', () async {
-      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      final app = createTestAppState();
       await app.login('cliente@correo.com', 'cliente123');
       final product = app.products.first;
       final before = product.stock;
@@ -80,14 +86,14 @@ void main() {
     });
 
     test('sin productos en el carrito no se crea pedido', () {
-      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      final app = createTestAppState();
       expect(app.placeOrder(paymentLabel: 'Nequi', address: 'x'), isNull);
     });
   });
 
   group('Panel administrativo', () {
     test('permite actualizar stock y precio', () {
-      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      final app = createTestAppState();
       final product = app.products.first;
       app.updateProduct(product, stock: 99, price: 50000);
       expect(product.stock, 99);
@@ -95,7 +101,7 @@ void main() {
     });
 
     test('permite cambiar el estado de un pedido', () async {
-      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      final app = createTestAppState();
       await app.login('cliente@correo.com', 'cliente123');
       app.cart.addProduct(app.products.first, 1);
       final order = app.placeOrder(paymentLabel: 'Nequi', address: 'x')!;
@@ -109,7 +115,7 @@ void main() {
 
   group('Ventas seguras y Voucher encriptado', () {
     test('genera voucher con token encriptado y envío por correo', () async {
-      final app = AppState(tokenStorage: InMemoryTokenStorageService());
+      final app = createTestAppState();
       await app.login('cliente@correo.com', 'cliente123');
       app.cart.addProduct(app.products.first, 1);
       final order = app.placeOrder(paymentLabel: 'Nequi', address: 'Calle 25')!;

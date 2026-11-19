@@ -211,6 +211,8 @@ class AppState extends ChangeNotifier {
       return 'Respuesta inesperada del servidor de autenticación.';
     } on ApiException catch (err) {
       if (err.statusCode == 401) {
+        final localResult = _localLogin(e, p);
+        if (localResult == null) return null;
         return 'Credenciales incorrectas: correo o contraseña no válidos.';
       }
       if (err.code == 'NETWORK_ERROR') {
