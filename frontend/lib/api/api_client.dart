@@ -25,15 +25,22 @@ class ApiClient {
   final http.Client _client;
   String? _authToken;
 
+  /// Callback interceptor invocado cuando el backend responde con HTTP 401 Unauthorized.
+  /// Permite limpiar la sesión local y redirigir inmediatamente al login.
+  void Function()? onUnauthorized;
+
   ApiClient({
     String? baseUrl,
     http.Client? client,
+    this.onUnauthorized,
   })  : baseUrl = baseUrl ?? 'http://localhost:3000/api/v1',
         _client = client ?? http.Client();
 
   void setAuthToken(String? token) {
     _authToken = token;
   }
+
+  String? getAuthToken() => _authToken;
 
   Map<String, String> _buildHeaders() {
     final headers = <String, String>{
@@ -94,6 +101,54 @@ class ApiClient {
     }
   }
 
+  Future<dynamic> put(String endpoint, {Map<String, dynamic>? body}) async {
+    final uri = Uri.parse('$baseUrl$endpoint');
+    try {
+      final response = await _client
+          .put(
+            uri,
+            headers: _buildHeaders(),
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(const Duration(seconds: 10));
+      return _processResponse(response);
+    } on SocketException {
+      throw const ApiException(
+        statusCode: 0,
+        code: 'NETWORK_ERROR',
+        message: 'No se pudo conectar con el servidor backend',
+      );
+    } on TimeoutException {
+      throw const ApiException(
+        statusCode: 408,
+        code: 'TIMEOUT',
+        message: 'Tiempo de espera agotado al conectar con el servidor',
+      );
+    }
+  }
+
+  Future<dynamic> delete(String endpoint) async {
+    final uri = Uri.parse('$baseUrl$endpoint');
+    try {
+      final response = await _client
+          .delete(uri, headers: _buildHeaders())
+          .timeout(const Duration(seconds: 10));
+      return _processResponse(response);
+    } on SocketException {
+      throw const ApiException(
+        statusCode: 0,
+        code: 'NETWORK_ERROR',
+        message: 'No se pudo conectar con el servidor backend',
+      );
+    } on TimeoutException {
+      throw const ApiException(
+        statusCode: 408,
+        code: 'TIMEOUT',
+        message: 'Tiempo de espera agotado al conectar con el servidor',
+      );
+    }
+  }
+
   dynamic _processResponse(http.Response response) {
     dynamic decoded;
     try {
@@ -104,6 +159,11 @@ class ApiClient {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return decoded;
+    }
+
+    // Interceptor: Si el backend rechaza con 401 Unauthorized, disparar callback central
+    if (response.statusCode == 401) {
+      onUnauthorized?.call();
     }
 
     if (decoded is Map<String, dynamic> && decoded.containsKey('error')) {

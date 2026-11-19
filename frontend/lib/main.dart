@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'state/app_state.dart';
 import 'theme/app_theme.dart';
@@ -30,13 +31,19 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Electro Industrial — Materiales Eléctricos e Industriales',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.theme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      home: LoginScreen(app: _app),
+    return AnimatedBuilder(
+      animation: _app,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'Electro Industrial — Materiales Eléctricos e Industriales',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.theme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: ThemeMode.system,
+          // Si hay sesión y token válidos, va directo a HomeScreen; si no, a LoginScreen
+          home: _app.isLoggedIn ? HomeScreen(app: _app) : LoginScreen(app: _app),
+        );
+      },
     );
   }
 }

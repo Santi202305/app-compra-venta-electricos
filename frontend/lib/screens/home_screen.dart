@@ -12,6 +12,7 @@ import 'chat_bot_screen.dart';
 import 'login_screen.dart';
 import 'orders_screen.dart';
 import 'product_detail_screen.dart';
+import 'session_info_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final AppState app;
@@ -58,6 +59,9 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
       case 'admin':
         _push(AdminScreen(app: widget.app));
+        break;
+      case 'session':
+        _push(SessionInfoScreen(app: widget.app));
         break;
       case 'logout':
         widget.app.logout();
@@ -618,6 +622,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(Icons.info_outline, size: 18, color: AppColors.accent),
                     SizedBox(width: 10),
                     Text('Acerca de la app'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'session',
+                child: Row(
+                  children: [
+                    Icon(Icons.shield_outlined, size: 18, color: AppColors.accent),
+                    SizedBox(width: 10),
+                    Text('Información de sesión (JWT)'),
                   ],
                 ),
               ),
